@@ -1,0 +1,5 @@
+# created by virtualenv automatically
+venv_rr/
+.idea/
+.env
+notebooks/.ipynb_checkpoints/
