@@ -3,3 +3,4 @@ venv_rr/
 .idea/
 .env
 notebooks/.ipynb_checkpoints/
+logs/

@@ -2,6 +2,8 @@ import openai
 from dotenv import load_dotenv
 import os
 import streamlit as st
+import uuid
+import logging
 
 # environment vars
 load_dotenv()
@@ -9,42 +11,42 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # configs, to move to another file later
 model = "gpt-3.5-turbo"
+temperature = 1.0
+
+# log setting
+current_dir = os.path.dirname(os.path.abspath(__file__))
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+logger = logging.getLogger("main-logger")
+logger.setLevel(logging.DEBUG)
+logger.propagate = False
+if not logger.handlers:
+    file_handler = logging.FileHandler(os.path.join(current_dir,"../logs/app_logs/app_log.txt"))
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+chat_history_logger = logging.getLogger("chat-history-logger")
+chat_history_logger.setLevel(logging.DEBUG)
+chat_history_logger.propagate = False
+if not chat_history_logger.handlers:
+    chat_history_file_handler = logging.FileHandler(os.path.join(current_dir,"../logs/chat_history/chat_history_log.txt"))
+    chat_history_file_handler.setFormatter(formatter)
+    chat_history_logger.addHandler(chat_history_file_handler)
 
 # prompts
-PROMPT_PREFIX_INGREDIENT_RECO = """
-You are a recipe recommendation engine. Your task is to give at most 5 recipes that involves one or more ingredient given by the user. Return the name of the recipe, type of cuisine if it exists, and a brief description of the dish. If the dish is from a particular cuisine, also include the original language name and english pronunciation of the name. If recipe is not from a specific cuisine, give back 'no specific cuisine' as cuisine type. For description, keep it concise and include things like type of dish, other main ingredients, short description of the dish, and how the dish is typically enjoyed. Give result back in the following format:
-- <recipe title> (<original language title>, english pronunciation)
-- cuisine type
-- description
-
-ingredients: 
-"""
-
-PROMPT_PREFIX_MOOD = """
-You are a recipe recommendation engine. Your task is to give at most 5 recipes that is appropriate for user's input mood or occasion. Return the name of the recipe, type of cuisine if it exists, and a brief description of the dish. If the dish is from a particular cuisine, also include the original language name and english pronunciation of the name. If recipe is not from a specific cuisine, give back 'no specific cuisine' as cuisine type. For description, keep it concise and include things like type of dish, main ingredients, short description of the dish, why the dish is appropriate, and how the dish is typically enjoyed. Give result back in the following format:
-- <recipe title> (<original language title>, english pronunciation)
-- cuisine type
-- description
-
-user input: 
-"""
-
-PROMPT_PREFIX_PAIR = """
-You are a recipe recommendation engine. Your task is to give at most 5 recipes that is often served with user's input recipe. Return the name of the recipe, type of cuisine if it exists, and a brief description of the dish. If the dish is from a particular cuisine, also include the original language name and english pronunciation of the name. If recipe is not from a specific cuisine, give back 'no specific cuisine' as cuisine type. For description, keep it concise and include things like type of dish, main ingredients, short description of the dish, and why it is served together. Give result back in the following format:
-- <recipe title> (<original language title>, english pronunciation)
-- cuisine type
-- description
-
-input recipe:
-"""
-
-temperature = 1.0 # later make it variable depending on user input
+with open(os.path.join(current_dir,"prompts/prompt_ingredient_reco.txt"), 'r') as f:
+    PROMPT_PREFIX_INGREDIENT_RECO = f.read()
+with open(os.path.join(current_dir,"prompts/prompt_mood_reco.txt"), 'r') as f:
+    PROMPT_PREFIX_MOOD = f.read()
+with open(os.path.join(current_dir,"prompts/prompt_pair_reco.txt"), 'r') as f:
+    PROMPT_PREFIX_PAIR = f.read()
 
 
 # generic function to get chat completion response
 def get_chat_completion_response(user_input,
                                  prompt_prefix,
-                                 temperature
+                                 temperature,
+                                 reco_type
                                  ):
     """
     function to return response from gpt's chat completion api given user input
@@ -53,15 +55,47 @@ def get_chat_completion_response(user_input,
     :param temperature:
     :return:
     """
+    # generate search id
+    search_uuid = uuid.uuid4()
     messages = [
         {"role": "user", "content": prompt_prefix+user_input}
     ]
-    chat_completion_response = openai.ChatCompletion.create(
-        model=model,
-        messages=messages,
-        temperature=temperature
-    )
+    logger.info(f"Search uuid: {search_uuid}")
+    logger.info(f"Prompt type: {reco_type}")
+    logger.info(f"Full prompt: {messages}")
+
+    try:
+        chat_completion_response = openai.ChatCompletion.create(
+            model=model,
+            messages=messages,
+            temperature=temperature
+        )
+    except (openai.error.Timeout, openai.error.APIError,
+            openai.error.APIConnectionError, openai.error.RateLimitError) as e:
+        logger.error("Error while making API call: ",e)
+        return "An error has occurred while requesting. Please try again after a while."
+    except openai.error.InvalidRequestError as e:
+        logger.error("Error while making API call: ", e)
+        print(f"OpenAI API request was invalid: {e}")
+        return "InvalidRequestError has occurred. Check parameters."
+    except (openai.error.AuthenticationError, openai.error.PermissionError) as e:
+        logger.error("Error while making API call: ", e)
+        return "Authentication/Permission Error has occurred. Check credentials."
+
+    # if successful, return response text
+    logger.info("API call successful. Chat response details: ")
+    logger.info(chat_completion_response)
     response_text = chat_completion_response['choices'][0]['message']['content']
+
+    # log chat response in chat history logs
+    chat_response_json = {
+        'search_uuid': search_uuid,
+        'prompt_type': reco_type,
+        'user_input': user_input,
+        'recommendations_text': response_text
+    }
+    chat_history_logger.info(chat_response_json)
+
     return response_text
 
 
@@ -81,7 +115,8 @@ def main():
             gpt_response_text = get_chat_completion_response(
                 user_input=user_input_text,
                 prompt_prefix=PROMPT_PREFIX_INGREDIENT_RECO,
-                temperature=temperature
+                temperature=temperature,
+                reco_type=reco_type
             )
             st.write(gpt_response_text)
     elif reco_type == 'mood':
@@ -90,7 +125,8 @@ def main():
             gpt_response_text = get_chat_completion_response(
                 user_input=user_input_text,
                 prompt_prefix=PROMPT_PREFIX_MOOD,
-                temperature=temperature
+                temperature=temperature,
+                reco_type=reco_type
             )
             st.write(gpt_response_text)
     elif reco_type == 'pairing':
@@ -99,11 +135,10 @@ def main():
             gpt_response_text = get_chat_completion_response(
                 user_input=user_input_text,
                 prompt_prefix=PROMPT_PREFIX_PAIR,
-                temperature=temperature
+                temperature=temperature,
+                reco_type=reco_type
             )
             st.write(gpt_response_text)
-    else:
-        st.write("Not ready yet!")
 
 
 if __name__ == "__main__":
