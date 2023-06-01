@@ -12,26 +12,26 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 # configs, to move to another file later
 model = "gpt-3.5-turbo"
 temperature = 1.0
-
-# log setting
 current_dir = os.path.dirname(os.path.abspath(__file__))
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-logger = logging.getLogger("main-logger")
-logger.setLevel(logging.DEBUG)
-logger.propagate = False
-if not logger.handlers:
-    file_handler = logging.FileHandler(os.path.join(current_dir,"../logs/app_logs/app_log.txt"))
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-
-chat_history_logger = logging.getLogger("chat-history-logger")
-chat_history_logger.setLevel(logging.DEBUG)
-chat_history_logger.propagate = False
-if not chat_history_logger.handlers:
-    chat_history_file_handler = logging.FileHandler(os.path.join(current_dir,"../logs/chat_history/chat_history_log.txt"))
-    chat_history_file_handler.setFormatter(formatter)
-    chat_history_logger.addHandler(chat_history_file_handler)
+# # log setting
+# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+#
+# logger = logging.getLogger("main-logger")
+# logger.setLevel(logging.DEBUG)
+# logger.propagate = False
+# if not logger.handlers:
+#     file_handler = logging.FileHandler(os.path.join(current_dir,"../logs/app_logs/app_log.txt"))
+#     file_handler.setFormatter(formatter)
+#     logger.addHandler(file_handler)
+#
+# chat_history_logger = logging.getLogger("chat-history-logger")
+# chat_history_logger.setLevel(logging.DEBUG)
+# chat_history_logger.propagate = False
+# if not chat_history_logger.handlers:
+#     chat_history_file_handler = logging.FileHandler(os.path.join(current_dir,"../logs/chat_history/chat_history_log.txt"))
+#     chat_history_file_handler.setFormatter(formatter)
+#     chat_history_logger.addHandler(chat_history_file_handler)
 
 # prompts
 with open(os.path.join(current_dir,"prompts/prompt_ingredient_reco.txt"), 'r') as f:
@@ -60,9 +60,9 @@ def get_chat_completion_response(user_input,
     messages = [
         {"role": "user", "content": prompt_prefix+user_input}
     ]
-    logger.info(f"Search uuid: {search_uuid}")
-    logger.info(f"Prompt type: {reco_type}")
-    logger.info(f"Full prompt: {messages}")
+    # logger.info(f"Search uuid: {search_uuid}")
+    # logger.info(f"Prompt type: {reco_type}")
+    # logger.info(f"Full prompt: {messages}")
 
     try:
         chat_completion_response = openai.ChatCompletion.create(
@@ -72,19 +72,18 @@ def get_chat_completion_response(user_input,
         )
     except (openai.error.Timeout, openai.error.APIError,
             openai.error.APIConnectionError, openai.error.RateLimitError) as e:
-        logger.error("Error while making API call: ",e)
+        # logger.error("Error while making API call: ",e)
         return "An error has occurred while requesting. Please try again after a while."
     except openai.error.InvalidRequestError as e:
-        logger.error("Error while making API call: ", e)
-        print(f"OpenAI API request was invalid: {e}")
+        # logger.error("Error while making API call: ", e)
         return "InvalidRequestError has occurred. Check parameters."
     except (openai.error.AuthenticationError, openai.error.PermissionError) as e:
-        logger.error("Error while making API call: ", e)
+        # logger.error("Error while making API call: ", e)
         return "Authentication/Permission Error has occurred. Check credentials."
 
     # if successful, return response text
-    logger.info("API call successful. Chat response details: ")
-    logger.info(chat_completion_response)
+    # logger.info("API call successful. Chat response details: ")
+    # logger.info(chat_completion_response)
     response_text = chat_completion_response['choices'][0]['message']['content']
 
     # log chat response in chat history logs
@@ -94,7 +93,7 @@ def get_chat_completion_response(user_input,
         'user_input': user_input,
         'recommendations_text': response_text
     }
-    chat_history_logger.info(chat_response_json)
+    # chat_history_logger.info(chat_response_json)
 
     return response_text
 
