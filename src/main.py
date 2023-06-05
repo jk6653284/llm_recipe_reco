@@ -107,6 +107,7 @@ def main():
     reco_type = st.radio(label="select the type of recommendation",
                          options=('ingredient', 'mood', 'pairing')
                          )
+    st.write("This is testing if the streamlit secret works:", st.secrets["open_ai"]["test_secrets"])
 
     if reco_type == 'ingredient':
         user_input_text = st.text_input("List one or more ingredients (e.g. 'black olives') separated by comma: ")
