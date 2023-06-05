@@ -1,13 +1,11 @@
 import openai
-from dotenv import load_dotenv
 import os
 import streamlit as st
 import uuid
 import logging
 
-# environment vars
-load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# environment vars from streamlit
+openai.api_key = st.secrets["open_ai"]["api_key"]
 
 # configs, to move to another file later
 model = "gpt-3.5-turbo"
@@ -107,7 +105,6 @@ def main():
     reco_type = st.radio(label="select the type of recommendation",
                          options=('ingredient', 'mood', 'pairing')
                          )
-    st.write("This is testing if the streamlit secret works:", st.secrets["open_ai"]["test_secrets"])
 
     if reco_type == 'ingredient':
         user_input_text = st.text_input("List one or more ingredients (e.g. 'black olives') separated by comma: ")
