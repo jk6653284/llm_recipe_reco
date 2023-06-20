@@ -1,145 +1,103 @@
-import openai
 import os
+import json
 import streamlit as st
-import uuid
-import logging
-
-# environment vars from streamlit
-openai.api_key = st.secrets["open_ai"]["api_key"]
+from recipe_recommendations import get_recipe_reco_in_json
+from app_logger import logger
 
 # configs, to move to another file later
-model = "gpt-3.5-turbo"
-temperature = 1.0
 current_dir = os.path.dirname(os.path.abspath(__file__))
-
-# log setting
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-logger = logging.getLogger("main-logger")
-logger.setLevel(logging.DEBUG)
-logger.propagate = False
-if not logger.handlers:
-    # file_handler = logging.FileHandler(os.path.join(current_dir,"../logs/app_logs/app_log.txt"))
-    # file_handler.setFormatter(formatter)
-    # logger.addHandler(file_handler)
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(formatter)
-    logger.addHandler(stream_handler)
-#
-# chat_history_logger = logging.getLogger("chat-history-logger")
-# chat_history_logger.setLevel(logging.DEBUG)
-# chat_history_logger.propagate = False
-# if not chat_history_logger.handlers:
-#     chat_history_file_handler = logging.FileHandler(os.path.join(current_dir,"../logs/chat_history/chat_history_log.txt"))
-#     chat_history_file_handler.setFormatter(formatter)
-#     chat_history_logger.addHandler(chat_history_file_handler)
+model = "text-davinci-003"
+recipe_reco_temperature = 1.0
+recipe_parser_temperature=0.0
+#openai_api_key = st.secrets["open_ai"]["api_key"]
+import dotenv
+dotenv.load_dotenv()
+openai_api_key = os.getenv("OPENAI_API_KEY")
 
 # prompts
-with open(os.path.join(current_dir,"prompts/prompt_ingredient_reco.txt"), 'r') as f:
+with open(os.path.join(current_dir, "prompts/prompt_recipe_json_format.txt"), 'r') as f:
+    JSON_FORMAT_PROMPT = f.read()
+with open(os.path.join(current_dir, "prompts/prompt_ingredient_reco.txt"), 'r') as f:
     PROMPT_PREFIX_INGREDIENT_RECO = f.read()
-with open(os.path.join(current_dir,"prompts/prompt_mood_reco.txt"), 'r') as f:
-    PROMPT_PREFIX_MOOD = f.read()
-with open(os.path.join(current_dir,"prompts/prompt_pair_reco.txt"), 'r') as f:
-    PROMPT_PREFIX_PAIR = f.read()
+# with open(os.path.join(current_dir,"prompts/prompt_mood_reco.txt"), 'r') as f:
+#     PROMPT_PREFIX_MOOD = f.read()
+# with open(os.path.join(current_dir,"prompts/prompt_pair_reco.txt"), 'r') as f:
+#     PROMPT_PREFIX_PAIR = f.read()
 
 
-# generic function to get chat completion response
-def get_chat_completion_response(user_input,
-                                 prompt_prefix,
-                                 temperature,
-                                 reco_type
-                                 ):
+def format_results_in_blocks(block, result_json):
     """
-    function to return response from gpt's chat completion api given user input
-    :param user_input:
-    :param prompt_prefix:
-    :param temperature:
+    :param result_json:
     :return:
     """
-    # generate search id
-    search_uuid = uuid.uuid4()
-    messages = [
-        {"role": "user", "content": prompt_prefix+user_input}
-    ]
-    logger.info(f"Search uuid: {search_uuid}")
-    logger.info(f"Prompt type: {reco_type}")
-    logger.info(f"User input: {user_input}")
-    logger.info(f"Full prompt: {messages}")
-
-    try:
-        chat_completion_response = openai.ChatCompletion.create(
-            model=model,
-            messages=messages,
-            temperature=temperature
-        )
-    except (openai.error.Timeout, openai.error.APIError,
-            openai.error.APIConnectionError, openai.error.RateLimitError) as e:
-        logger.error("Error while making API call: ",e)
-        return "An error has occurred while requesting. Please try again after a while."
-    except openai.error.InvalidRequestError as e:
-        logger.error("Error while making API call: ", e)
-        return "InvalidRequestError has occurred. Check parameters."
-    except (openai.error.AuthenticationError, openai.error.PermissionError) as e:
-        logger.error("Error while making API call: ", e)
-        return "Authentication/Permission Error has occurred. Check credentials."
-
-    # if successful, return response text
-    logger.info("API call successful. Chat response details: ")
-    logger.info(chat_completion_response)
-    response_text = chat_completion_response['choices'][0]['message']['content']
-
-    # log chat response in chat history logs
-    chat_response_json = {
-        'search_uuid': search_uuid,
-        'prompt_type': reco_type,
-        'user_input': user_input,
-        'recommendations_text': response_text
-    }
-    # chat_history_logger.info(chat_response_json)
-
-    return response_text
-
+    with block:
+        # title
+        title_english = result_json['title']['english_translation']
+        st.subheader(title_english)
+        if len(result_json['title']['original_language']) > 0:
+            title_original = f"{result_json['title']['original_language']} ({result_json['title']['english_pronunciation']})"
+            st.subheader(title_original)
+        if len(result_json['cuisine']) > 0:
+            st.caption(f"{result_json['cuisine']} cuisine")
+        st.write(result_json['description'], wrap=True)
 
 def main():
     """
     main function to run streamlit app
     """
-    st.title("GPT powered recipe recommendation")
+    st.set_page_config(
+        page_title='GPT powered recipe recommendation',
+        layout="wide",
+        initial_sidebar_state="expanded",
+    )
 
     reco_type = st.radio(label="select the type of recommendation",
                          options=('ingredient', 'mood', 'pairing')
                          )
+    reco_response = ''
 
     if reco_type == 'ingredient':
         user_input_text = st.text_input("List one or more ingredients (e.g. 'black olives') separated by comma: ")
         if user_input_text.strip() != '':
-            gpt_response_text = get_chat_completion_response(
-                user_input=user_input_text,
-                prompt_prefix=PROMPT_PREFIX_INGREDIENT_RECO,
-                temperature=temperature,
-                reco_type=reco_type
-            )
-            st.write(gpt_response_text)
-    elif reco_type == 'mood':
-        user_input_text = st.text_input("Give a short description of what you feel like eating or the occasion (e.g. birthday party finger food): ")
-        if user_input_text.strip() != '':
-            gpt_response_text = get_chat_completion_response(
-                user_input=user_input_text,
-                prompt_prefix=PROMPT_PREFIX_MOOD,
-                temperature=temperature,
-                reco_type=reco_type
-            )
-            st.write(gpt_response_text)
-    elif reco_type == 'pairing':
-        user_input_text = st.text_input("Give a recipe that you want pairings for (e.g. caprese salad): ")
-        if user_input_text.strip() != '':
-            gpt_response_text = get_chat_completion_response(
-                user_input=user_input_text,
-                prompt_prefix=PROMPT_PREFIX_PAIR,
-                temperature=temperature,
-                reco_type=reco_type
-            )
-            st.write(gpt_response_text)
+            reco_response = get_recipe_reco_in_json(reco_type=reco_type,
+                                                    recipe_reco_prompt_template=PROMPT_PREFIX_INGREDIENT_RECO,
+                                                    json_parser_prompt_template=JSON_FORMAT_PROMPT,
+                                                    user_input_text=user_input_text,
+                                                    api_key=openai_api_key,
+                                                    reco_temperature=recipe_reco_temperature,
+                                                    parser_temperature=recipe_parser_temperature,
+                                                    model_name=model)
+    # elif reco_type == 'mood':
+    #     user_input_text = st.text_input("Give a short description of what you feel like eating or the occasion (e.g. birthday party finger food): ")
+    #     if user_input_text.strip() != '':
+    #         gpt_response_text = get_recipe_recommendation(
+    #             user_input=user_input_text,
+    #             prompt_prefix=PROMPT_PREFIX_MOOD,
+    #             temperature=recipe_reco_temperature,
+    #             reco_type=reco_type,
+    #             model=model
+    #         )
+    # elif reco_type == 'pairing':
+    #     user_input_text = st.text_input("Give a recipe that you want pairings for (e.g. caprese salad): ")
+    #     if user_input_text.strip() != '':
+    #         gpt_response_text = get_recipe_recommendation(
+    #             user_input=user_input_text,
+    #             prompt_prefix=PROMPT_PREFIX_PAIR,
+    #             temperature=recipe_reco_temperature,
+    #             reco_type=reco_type,
+    #             model=model
+    #         )
+    else:
+        st.write("Not available")
+
+    # convert results to json
+    if reco_response != '' or reco_response is not None:
+        reco_response_json = json.loads(reco_response)
+        blocks = st.columns(len(reco_response_json))
+        for block, response in zip(blocks, reco_response_json):
+            format_results_in_blocks(block, response)
+    else:
+        st.write("Cannot parse response. Please try again or check the logs.")
 
 
 if __name__ == "__main__":

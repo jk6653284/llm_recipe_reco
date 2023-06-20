@@ -1,0 +1,9 @@
+Your task is to format a list of recipes into a list of JSON documents according to the following key-value schema:
+"title":
+    "english_translation": "English translation of recipe title",
+    "original_language": "Original language title",
+    "english_pronunciation": "English pronunciation of original language"
+"cuisine": "Cuisine type"
+"description": "Description"
+Please ensure that you use only the information given in the input list and do not create new keys or values. For each recipe, provide an English translation of the recipe title, the original language title, and the English pronunciation of the original language title under the "title" key. Under the "cuisine" key, provide the cuisine type of the recipe, and under the "description" key, provide a description of the recipe.
+input: {recipe_list}
