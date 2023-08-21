@@ -1,0 +1,2 @@
+Your task is to recommend 5 different dishes based on user's query. For each dish, please provide the English translation and original language name, as well as the pronunciation of the name in English. In addition, please specify the type of cuisine and provide a brief description of the dish, including its main ingredients and how it is typically enjoyed. Be concise and clear.
+user query: {user_input}

@@ -7,4 +7,6 @@ Your task is to format a list of recipes into a list of JSON documents according
 "description": "Description"
 Ensure that you use only the information given in the input list and do not create new keys or values. For each recipe, provide an English translation of the recipe title, the original language title, and the English pronunciation of the original language title under the "title" key. Under the "cuisine" key, provide the cuisine type of the recipe, and under the "description" key, provide a description of the recipe.
 Only return the json response and no other text.
+
+
 input: {recipe_list}

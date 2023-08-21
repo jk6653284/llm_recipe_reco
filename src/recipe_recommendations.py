@@ -44,7 +44,7 @@ def get_recipe_reco_in_json(reco_type,
     logger.info(f"Prompt type: {reco_type}")
 
     reco_chain = create_chain(prompt_template=recipe_reco_prompt_template,
-                              input_variables=['ingredients'],
+                              input_variables=['user_input'],
                               temperature=reco_temperature,
                               model_name=model_name,
                               api_key=api_key)

@@ -20,24 +20,18 @@ with open(os.path.join(current_dir, "prompts/prompt_recipe_json_format.txt"), 'r
     JSON_FORMAT_PROMPT = f.read()
 with open(os.path.join(current_dir, "prompts/prompt_ingredient_reco.txt"), 'r') as f:
     PROMPT_PREFIX_INGREDIENT_RECO = f.read()
-# with open(os.path.join(current_dir,"prompts/prompt_mood_reco.txt"), 'r') as f:
-#     PROMPT_PREFIX_MOOD = f.read()
-# with open(os.path.join(current_dir,"prompts/prompt_pair_reco.txt"), 'r') as f:
-#     PROMPT_PREFIX_PAIR = f.read()
+with open(os.path.join(current_dir,"prompts/prompt_free_text.txt"), 'r') as f:
+    PROMPT_PREFIX_FREE_TEXT = f.read()
 
 reco_type_dict = {
     "ingredient": {
         "text_guide": "List one or more ingredients (e.g. 'black olives') separated by comma: ",
         "prompt": PROMPT_PREFIX_INGREDIENT_RECO
     },
-    "mood": {
-        "text_guide": "Give a short description of what you feel like eating or the occasion (e.g. birthday party finger food): ",
-        "prompt": PROMPT_PREFIX_INGREDIENT_RECO
+    "free-text": {
+        "text_guide": "Give a short description of what you are feeling for! (e.g. I'm feeling something spicy!)",
+        "prompt": PROMPT_PREFIX_FREE_TEXT
     },
-    "pairing": {
-        "text_guide": "Give a recipe that you want pairings for (e.g. caprese salad): ",
-        "prompt": PROMPT_PREFIX_INGREDIENT_RECO
-    }
 }
 
 
@@ -69,7 +63,7 @@ def main():
     )
 
     reco_type = st.radio(label="select the type of recommendation",
-                         options=('ingredient', 'mood', 'pairing')
+                         options=('ingredient', 'free-text')
                          )
     user_input_text = st.text_input(reco_type_dict[reco_type]['text_guide'])
     clicked = st.button("Run model")
@@ -94,26 +88,6 @@ def main():
                 st.write(f"Error while parsing result to json format. Check the response: \n {reco_response}")
         else:
             st.write("Cannot parse response. Please try again or check the logs.")
-    # elif reco_type == 'mood':
-    #     user_input_text = st.text_input("Give a short description of what you feel like eating or the occasion (e.g. birthday party finger food): ")
-    #     if user_input_text.strip() != '':
-    #         gpt_response_text = get_recipe_recommendation(
-    #             user_input=user_input_text,
-    #             prompt_prefix=PROMPT_PREFIX_MOOD,
-    #             temperature=recipe_reco_temperature,
-    #             reco_type=reco_type,
-    #             model=model
-    #         )
-    # elif reco_type == 'pairing':
-    #     user_input_text = st.text_input("Give a recipe that you want pairings for (e.g. caprese salad): ")
-    #     if user_input_text.strip() != '':
-    #         gpt_response_text = get_recipe_recommendation(
-    #             user_input=user_input_text,
-    #             prompt_prefix=PROMPT_PREFIX_PAIR,
-    #             temperature=recipe_reco_temperature,
-    #             reco_type=reco_type,
-    #             model=model
-    #         )
 
 
 if __name__ == "__main__":
